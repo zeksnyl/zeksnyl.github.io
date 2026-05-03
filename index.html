@@ -1,12 +1,316 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Zeksnyl 11.5.3137</title>
-  <meta name="description" content="Buy my product here">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>News RSS · keyword feed builder</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #eef2f0;
+      font-family: system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+      line-height: 1.45;
+      padding: 2rem 1.5rem;
+    }
+
+    /* main container */
+    .main-wrapper {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* classic minimalist card for form */
+    .form-card {
+      max-width: 620px;
+      background: #ffffff;
+      border-radius: 28px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(0, 0, 0, 0.04);
+      padding: 1.8rem 2rem 2rem 2rem;
+      margin-bottom: 2.5rem;
+      border: 1px solid #e2e8e3;
+    }
+
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 550;
+      letter-spacing: -0.01em;
+      color: #1a2c2e;
+      margin-bottom: 0.3rem;
+      border-left: 4px solid #2c5f2d;
+      padding-left: 1rem;
+    }
+
+    .subhead {
+      font-size: 0.9rem;
+      color: #556b5f;
+      margin-bottom: 1.4rem;
+      border-bottom: 1px solid #e9edeb;
+      padding-bottom: 0.7rem;
+    }
+
+    .description {
+      background: #f9fbf9;
+      padding: 0.8rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: #2c4b3e;
+      margin-bottom: 1.6rem;
+      border: 1px solid #e2e8e2;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #3b5c4a;
+      margin-bottom: 0.5rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      font-size: 1rem;
+      border: 1.5px solid #dee4e0;
+      border-radius: 28px;
+      background: #ffffff;
+      transition: 0.2s;
+      font-family: inherit;
+      color: #1e2f2a;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #2f6b47;
+      box-shadow: 0 0 0 3px rgba(47, 107, 71, 0.1);
+    }
+
+    button {
+      width: 100%;
+      background: #1f3b2c;
+      border: none;
+      padding: 0.85rem 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 40px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover:not(:disabled) {
+      background: #0e2b1f;
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      background: #a6bcae;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .status {
+      margin-top: 1.4rem;
+      padding: 0.7rem 1rem;
+      border-radius: 40px;
+      font-size: 0.85rem;
+      text-align: center;
+      background: #f6f8f6;
+      border: 1px solid #e2e8e2;
+      color: #2c5543;
+    }
+
+    .status.error {
+      background: #fff6f0;
+      color: #bc5a2c;
+      border-color: #ffe1cf;
+    }
+
+    .status.success {
+      background: #eaf7ec;
+      color: #1f673d;
+      border-color: #cce5cf;
+    }
+
+    .status.loading {
+      background: #f0f4f1;
+      color: #3d6b53;
+    }
+
+    /* NEWS FEED SECTION (dynamic & placeholder) */
+    .news-feed-section {
+      background: #fefef9;
+      border-radius: 32px;
+      border: 1px solid #e6ede8;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    }
+
+    .feed-header {
+      background: #ffffff;
+      padding: 1.2rem 1.8rem;
+      border-bottom: 1px solid #e2e8e2;
+    }
+
+    .feed-header h2 {
+      font-size: 1.4rem;
+      font-weight: 550;
+      color: #1a3a2f;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feed-header p {
+      font-size: 0.8rem;
+      color: #6a8577;
+      margin-top: 6px;
+    }
+
+    .feed-container {
+      padding: 1.8rem;
+      background: #fefef9;
+    }
+
+    /* grid for news cards (used both in placeholder and actual webhook response) */
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .news-card {
+      background: white;
+      border-radius: 24px;
+      padding: 1.2rem 1.2rem 1.4rem 1.2rem;
+      transition: all 0.2s;
+      border: 1px solid #e7ede9;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .news-card:hover {
+      border-color: #cbdcd2;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+    }
+
+    .news-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      line-height: 1.3;
+    }
+
+    .news-title a {
+      text-decoration: none;
+      color: #1f4d3a;
+      border-bottom: 1px solid transparent;
+      transition: 0.1s;
+    }
+
+    .news-title a:hover {
+      border-bottom-color: #2c7a4d;
+      color: #135f3a;
+    }
+
+    .news-meta {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #9cb4a5;
+      margin-bottom: 0.6rem;
+      display: flex;
+      gap: 12px;
+    }
+
+    .news-date {
+      background: #f1f6f3;
+      padding: 0.2rem 0.6rem;
+      border-radius: 30px;
+      display: inline-block;
+      font-size: 0.7rem;
+    }
+
+    .news-summary {
+      font-size: 0.85rem;
+      color: #2c4f40;
+      line-height: 1.45;
+      margin-top: 0.6rem;
+    }
+
+    .placeholder-note {
+      background: #f3f8f4;
+      border-radius: 20px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.8rem;
+      font-size: 0.85rem;
+      border-left: 3px solid #2f6b47;
+      color: #1c4236;
+    }
+
+    .inline-code {
+      background: #eef3ef;
+      padding: 0.2rem 0.4rem;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+
+    hr {
+      margin: 1.2rem 0;
+      border: none;
+      border-top: 1px solid #e2eae4;
+    }
+
+    footer-note {
+      font-size: 0.7rem;
+      text-align: center;
+      display: block;
+      margin-top: 1rem;
+      color: #8ca396;
+    }
+  </style>
 </head>
 <body>
-  <h1>Zeksnyl 11.5.3137</h1>
-  <p>Redirecting you to the purchase page...</p>
-  <a href="https://payhip.com/b/1TREt">Click here if not redirected</a>
+<div class="main-wrapper">
+  <!-- classic form card -->
+  <div class="form-card">
+    <h1>rss://news.feed</h1>
+    <div class="subhead">News feed generator for Mariam the Ugandan</div>
+    <div class="description">
+      <span>📡</span>
+      <span>Submit a keyword below to generate news feed</span>
+    </div>
+    <form id="keywordForm">
+      <div class="form-group">
+        <label for="keywordInput">🔍 keyword for news generation</label>
+        <input type="text" id="keywordInput" name="keyword" 
+               placeholder="e.g., artificial intelligence, climate, electric vehicles" 
+               autocomplete="off" spellcheck="false">
+      </div>
+      <button type="submit" id="sendBtn">
+        <span>⚡ generate & fetch news feed</span>
+      </button>
+    </form>
+    <div id="statusMessage" class="status">
+      ✦ ready — enter keyword, click send ✦
+    </div>
+  </div>
 </body>
 </html>
