@@ -321,5 +321,184 @@
       ✦ ready — enter keyword, click send ✦
     </div>
   </div>
+<script>
+    (function() {
+      // --- DOM elements ---
+      const form = document.getElementById('keywordForm');
+      const inputEl = document.getElementById('keywordInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const statusDiv = document.getElementById('statusMessage');
+
+      // --- webhook endpoint (exactly as provided) ---
+      const WEBHOOK_URL = 'https://hook.us2.make.com/siiaih59kd4fcrt235e8zdsa1ivbb34w';
+
+      // prevent multiple submissions
+      let isSubmitting = false;
+
+      // helper: update status with style
+      function setStatus(message, type = 'info') {
+        statusDiv.textContent = message;
+        // reset classes and add specific style
+        statusDiv.classList.remove('error', 'success', 'loading');
+        if (type === 'error') {
+          statusDiv.classList.add('error');
+        } else if (type === 'success') {
+          statusDiv.classList.add('success');
+        } else if (type === 'loading') {
+          statusDiv.classList.add('loading');
+        } else {
+          // neutral / default style
+          statusDiv.classList.remove('error', 'success', 'loading');
+        }
+      }
+
+      // reset button & submitting flag
+      function enableUI() {
+        isSubmitting = false;
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<span>⟳ generate RSS feed</span>';
+        inputEl.disabled = false;
+        inputEl.focus();
+      }
+
+      function disableUI(loadingMsg = 'Sending keyword to feed engine ...') {
+        isSubmitting = true;
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span>⏳ sending ...</span>';
+        inputEl.disabled = true;
+        setStatus(loadingMsg, 'loading');
+      }
+
+      // main submit logic: send POST with { "user input": keyword }
+      async function submitKeyword(rawKeyword) {
+        // trim and validate keyword
+        const trimmedKeyword = rawKeyword.trim();
+        if (trimmedKeyword === '') {
+          setStatus('✧ keyword cannot be empty. please enter a word or phrase ✧', 'error');
+          enableUI();    // re-enable everything, but keep button/input enabled
+          // also ensure input is enabled after error
+          inputEl.disabled = false;
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = '<span>⟳ generate RSS feed</span>';
+          isSubmitting = false;
+          return;
+        }
+
+        // exactly payload: { "user input": "trimmedKeyword" }
+        const payload = {
+          "user input": trimmedKeyword
+        };
+
+        try {
+          // POST request to the webhook (JSON)
+          const response = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            mode: 'cors'      // explicit cors mode (webhook must support CORS)
+          });
+
+          // handle response status
+          if (response.ok) {
+            // attempt to read response text/json for optional feedback
+            let responseData = null;
+            let extraMsg = '';
+            try {
+              const contentType = response.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                responseData = await response.json();
+                extraMsg = responseData?.message ? ` · ${responseData.message}` : '';
+              } else {
+                const text = await response.text();
+                if (text && text.length < 120) extraMsg = ` · ${text.substring(0, 100)}`;
+              }
+            } catch (e) {
+              // ignore parse errors, not crucial
+            }
+            setStatus(`✓ RSS feed generation triggered for “${escapeHtml(trimmedKeyword)}”. Webhook accepted.${extraMsg}`, 'success');
+            // optional: keep a success log, do not clear input field (design minimalist)
+          } else {
+            // server responded but with error status
+            let errorDetail = `HTTP ${response.status}`;
+            try {
+              const errorBody = await response.text();
+              if (errorBody) errorDetail += ` — ${errorBody.substring(0, 100)}`;
+            } catch (e) {}
+            setStatus(`✗ webhook error (${errorDetail}). Please try again.`, 'error');
+          }
+        } catch (err) {
+          console.error('Fetch error:', err);
+          let errorMessage = 'Network or CORS issue. ';
+          if (err.message) {
+            if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+              errorMessage = '⚠️ Request blocked: CORS or network failure. Ensure webhook supports cross-origin requests. ';
+            } else {
+              errorMessage += err.message;
+            }
+          }
+          setStatus(`${errorMessage}Keyword not delivered? You can retry.`, 'error');
+        } finally {
+          // re-enable UI after request finishes (success or error)
+          enableUI();
+          // focus to input for next keyword
+          inputEl.focus();
+        }
+      }
+
+      // simple escape for safe status display
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+          if (m === '&') return '&amp;';
+          if (m === '<') return '&lt;';
+          if (m === '>') return '&gt;';
+          return m;
+        });
+      }
+
+      // Form submit handler (click & keyboard)
+      async function onFormSubmit(event) {
+        event.preventDefault();
+        // avoid multiple concurrent submissions
+        if (isSubmitting) return;
+        
+        const rawValue = inputEl.value;
+        if (rawValue.trim() === '') {
+          // show light error without disabling long UI
+          setStatus('✧ please enter a keyword before sending ✧', 'error');
+          inputEl.focus();
+          return;
+        }
+
+        // disable interface and start request
+        disableUI('⏳ sending keyword to RSS generator ...');
+        await submitKeyword(rawValue);
+        // submitKeyword calls enableUI after completion (including errors)
+      }
+
+      // attach listeners
+      form.addEventListener('submit', onFormSubmit);
+      
+      // optional: extra guard for click but unified via form submit
+      // also make sure enter on input triggers naturally
+      // pre-focus + small example cleaner
+      inputEl.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (!isSubmitting) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+        }
+      });
+
+      // initial state: ready
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+      inputEl.focus();
+    })();
+  </script>  
 </body>
 </html>
